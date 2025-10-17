@@ -1,0 +1,60 @@
+name: Release (on tag)
+
+on:
+  push:
+    tags:
+      - "v*"   # z.B. v1.2.3
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write   # nötig für Release-Upload
+
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [ "win-x64", "win-arm64", "linux-x64"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore ./CR2toJPGconverter.sln
+
+      - name: Publish (${{ matrix.rid }})
+        shell: pwsh
+        run: |
+          dotnet publish ./CR2toJPGconverter.csproj `
+            -c Release `
+            -r ${{ matrix.rid }} `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:PublishTrimmed=false `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o "publish\${{ matrix.rid }}"
+
+      - name: ZIP (${{ matrix.rid }})
+        shell: pwsh
+        run: |
+          $rid = "${{ matrix.rid }}"
+          $tag = "${{ github.ref_name }}"           # z.B. v1.2.3
+          $zipName = "CR2toJPGconverter-$rid-$tag.zip"
+          Compress-Archive -Path "publish\$rid\*" -DestinationPath $zipName -Force
+          Write-Host "Created $zipName"
+          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
