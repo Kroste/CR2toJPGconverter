@@ -3,13 +3,13 @@ name: Release (on tag)
 on:
   push:
     tags:
-      - "v*"   # z.B. v1.2.3
+      - "V*"   # z.B. v1.2.3
 
 jobs:
   release:
     runs-on: windows-latest
     permissions:
-      contents: write   # nötig für Release-Upload
+      contents: write   # nÃ¶tig fÃ¼r Release-Upload
 
     strategy:
       fail-fast: false
